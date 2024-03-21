@@ -1,15 +1,15 @@
-//
-// Created by ccn on 23/02/24.
-//
+#include "text_renderer.hpp"
 
 #include <map>
 #include <iostream>
 
 #include <glad/gl.h>
-#include "text_rendering.hpp"
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
+
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
 /**
  *
@@ -26,7 +26,10 @@
  *  \todo don't return success tuple instead throw in this function so errors can be dealt with properly
  */
 
-std::tuple<bool, std::map<GLchar, CharacterDrawingData>> prepare_freetype_font(const std::string& font_path) {
+// todo: rename to generate font information, this "loads" in a font, and then whenever we want to render
+// text we just have to pass one of these things in.
+// this keeps the font-renderer de-coupled from the font data generation component
+std::tuple<bool, std::map<GLchar, CharacterDrawingData>> TextRenderer::prepare_freetype_font(const std::string& font_path) {
 
     std::map<GLchar, CharacterDrawingData> char_to_drawing_data;
 
@@ -102,11 +105,10 @@ std::tuple<bool, std::map<GLchar, CharacterDrawingData>> prepare_freetype_font(c
     return {true, char_to_drawing_data};
 }
 
-void render_text(ShaderPipeline &shader, std::map<GLchar, CharacterDrawingData> char_to_drawing_data, GLuint vao_name,
-                 GLuint vbo_name, std::string text, float x, float y, float scale, glm::vec3 color) {
+void TextRenderer::render_text(std::map<GLchar, CharacterDrawingData> char_to_drawing_data, std::string text, float x, float y, float scale, glm::vec3 color) {
     // activate corresponding render state
     // shader.use();
-    glUniform3f(glGetUniformLocation(shader.shader_program_id, "textColor"), color.x, color.y, color.z);
+    glUniform3f(glGetUniformLocation(this->shader_pipeline.shader_program_id, "textColor"), color.x, color.y, color.z);
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(vao_name);
 
@@ -148,4 +150,51 @@ void render_text(ShaderPipeline &shader, std::map<GLchar, CharacterDrawingData> 
     }
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+// todo: here instead we should just store the opengl data in a class most likely, and what is that class
+// it is a font-renderer, which gets passed in
+/**
+ *
+ * @param screen_width
+ * @param screen_height
+ * @return
+ */
+void TextRenderer::configure_opengl_for_text_rendering(const unsigned int screen_width, const unsigned int screen_height) {
+
+    // OpenGL state
+    // ------------
+    glEnable(GL_CULL_FACE);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // compile and setup the shader_pipeline
+    // ----------------------------
+    ShaderPipeline shader_pipeline;
+    shader_pipeline.load_in_shaders_from_file("../shaders/text.vert", "../shaders/text.frag");
+    glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(screen_width), 0.0f, static_cast<float>(screen_height));
+    glUniformMatrix4fv(glGetUniformLocation(shader_pipeline.shader_program_id, "projection"), 1, GL_FALSE,
+                       glm::value_ptr(projection));
+
+    // configure VAO/VBO for texture quads
+    // -----------------------------------
+    GLuint vao_name, vbo_name;
+    glGenVertexArrays(1, &vao_name);
+    glGenBuffers(1, &vbo_name);
+    glBindVertexArray(vao_name);
+    glBindBuffer(GL_ARRAY_BUFFER, vbo_name);
+    // 6 because every quad has 6 vertices, and aparently we need 4 of them?
+    glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
+
+    // a generic vertex type that contains all information
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
+
+    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindVertexArray(0);
+
+    this->shader_pipeline = shader_pipeline;
+    this->vao_name = vao_name;
+    this->vbo_name = vbo_name;
+
 }
