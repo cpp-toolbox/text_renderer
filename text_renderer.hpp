@@ -15,9 +15,6 @@ struct CharacterDrawingData {
     unsigned int Advance;   // Horizontal offset to advance to next glyph
 };
 
-struct OpenGLFontDrawingInformation {
-};
-
 /**
  * configure_opengl_for_text_rendering must be called before any other function is called!
  * \todo make this not the case, do it automatically.
