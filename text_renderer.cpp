@@ -107,7 +107,7 @@ std::tuple<bool, std::map<GLchar, CharacterDrawingData>> TextRenderer::prepare_f
 
 void TextRenderer::render_text(std::map<GLchar, CharacterDrawingData> char_to_drawing_data, std::string text, float x, float y, float scale, glm::vec3 color) {
     // activate corresponding render state
-    // shader.use();
+    glUseProgram(this->shader_pipeline.shader_program_id);
     glUniform3f(glGetUniformLocation(this->shader_pipeline.shader_program_id, "textColor"), color.x, color.y, color.z);
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(vao_name);
@@ -150,6 +150,7 @@ void TextRenderer::render_text(std::map<GLchar, CharacterDrawingData> char_to_dr
     }
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
+    glUseProgram(0);
 }
 
 // todo: here instead we should just store the opengl data in a class most likely, and what is that class
@@ -171,7 +172,7 @@ void TextRenderer::configure_opengl_for_text_rendering(const unsigned int screen
     // compile and setup the shader_pipeline
     // ----------------------------
     ShaderPipeline shader_pipeline;
-    shader_pipeline.load_in_shaders_from_file("../shaders/text.vert", "../shaders/text.frag");
+    shader_pipeline.load_in_shaders_from_file("../graphics/shaders/text/text.vert", "../graphics/shaders/text/text.frag");
     glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(screen_width), 0.0f, static_cast<float>(screen_height));
     glUniformMatrix4fv(glGetUniformLocation(shader_pipeline.shader_program_id, "projection"), 1, GL_FALSE,
                        glm::value_ptr(projection));
