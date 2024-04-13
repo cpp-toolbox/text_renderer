@@ -165,7 +165,10 @@ void TextRenderer::configure_opengl_for_text_rendering(const unsigned int screen
 
     // OpenGL state
     // ------------
-    glEnable(GL_CULL_FACE);
+
+    // read more about culling here: https://graphicscompendium.com/opengl/24-clipping-culling
+//    glEnable(GL_CULL_FACE); -- why do we even have this if it does nothing?
+// Also should this be moved to right before drawing?
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
