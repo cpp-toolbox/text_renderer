@@ -3,9 +3,10 @@
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include "../shader_pipeline/shader_pipeline.hpp" // TODO: don't depend on path
 #include <string>
 #include <map>
+
+#include "sbpt_generated_includes.hpp"
 
 /// Holds all state information relevant to a character as loaded using FreeType
 struct CharacterDrawingData {
@@ -21,9 +22,12 @@ struct CharacterDrawingData {
  */
 class TextRenderer {
 public:
-    std::tuple<bool, std::map<GLchar, CharacterDrawingData>> prepare_freetype_font(const std::string& font_path);
+    std::tuple<bool, std::map<GLchar, CharacterDrawingData>> prepare_freetype_font(const std::string &font_path);
+
     void configure_opengl_for_text_rendering(const unsigned int screen_width, const unsigned int screen_height);
-    void render_text(std::map<GLchar, CharacterDrawingData> char_to_drawing_data, std::string text, float x, float y, float scale, glm::vec3 color);
+
+    void render_text(std::map<GLchar, CharacterDrawingData> char_to_drawing_data, std::string text, float x, float y,
+                     float scale, glm::vec3 color);
 
     ShaderPipeline shader_pipeline;
     GLuint vao_name;

@@ -3,7 +3,7 @@
 #include <map>
 #include <iostream>
 
-#include <glad/gl.h>
+#include <glad/glad.h>
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -29,7 +29,8 @@
 // todo: rename to generate font information, this "loads" in a font, and then whenever we want to render
 // text we just have to pass one of these things in.
 // this keeps the font-renderer de-coupled from the font data generation component
-std::tuple<bool, std::map<GLchar, CharacterDrawingData>> TextRenderer::prepare_freetype_font(const std::string& font_path) {
+std::tuple<bool, std::map<GLchar, CharacterDrawingData>>
+TextRenderer::prepare_freetype_font(const std::string &font_path) {
 
     std::map<GLchar, CharacterDrawingData> char_to_drawing_data;
 
@@ -105,7 +106,8 @@ std::tuple<bool, std::map<GLchar, CharacterDrawingData>> TextRenderer::prepare_f
     return {true, char_to_drawing_data};
 }
 
-void TextRenderer::render_text(std::map<GLchar, CharacterDrawingData> char_to_drawing_data, std::string text, float x, float y, float scale, glm::vec3 color) {
+void TextRenderer::render_text(std::map<GLchar, CharacterDrawingData> char_to_drawing_data, std::string text, float x,
+                               float y, float scale, glm::vec3 color) {
     // activate corresponding render state
     glUseProgram(this->shader_pipeline.shader_program_id);
     glUniform3f(glGetUniformLocation(this->shader_pipeline.shader_program_id, "textColor"), color.x, color.y, color.z);
@@ -161,7 +163,8 @@ void TextRenderer::render_text(std::map<GLchar, CharacterDrawingData> char_to_dr
  * @param screen_height
  * @return
  */
-void TextRenderer::configure_opengl_for_text_rendering(const unsigned int screen_width, const unsigned int screen_height) {
+void
+TextRenderer::configure_opengl_for_text_rendering(const unsigned int screen_width, const unsigned int screen_height) {
 
     // OpenGL state
     // ------------
@@ -175,7 +178,8 @@ void TextRenderer::configure_opengl_for_text_rendering(const unsigned int screen
     // compile and setup the shader_pipeline
     // ----------------------------
     ShaderPipeline shader_pipeline;
-    shader_pipeline.load_in_shaders_from_file("../graphics/shaders/text/text.vert", "../graphics/shaders/text/text.frag");
+    shader_pipeline.load_in_shaders_from_file("../graphics/shaders/text/text.vert",
+                                              "../graphics/shaders/text/text.frag");
     glm::mat4 projection = glm::ortho(0.0f, static_cast<float>(screen_width), 0.0f, static_cast<float>(screen_height));
     glUniformMatrix4fv(glGetUniformLocation(shader_pipeline.shader_program_id, "projection"), 1, GL_FALSE,
                        glm::value_ptr(projection));
