@@ -30,7 +30,9 @@ class TextRenderer {
 
     GLCharToDrawingData generate_font_data(const std::string &font_path, unsigned int font_height_px);
 
-    void render_text(const std::string &text, float x, float y, float scale, const glm::vec3 &color);
+    void render_text(const std::string &text, glm::vec2 ndc_coord, float scale, const glm::vec3 &color);
+
+    glm::vec2 get_text_dimensions_in_ndc(const std::string &text, float scale) const;
 
     unsigned int num_vertices_per_quad = 6;
     unsigned int &window_width_px, &window_height_px;

@@ -181,16 +181,54 @@ GLCharToDrawingData TextRenderer::generate_font_data(const std::string &font_pat
     return char_to_drawing_data;
 }
 
-void TextRenderer::render_text(const std::string &text, float x, float y, float scale, const glm::vec3 &color) {
+glm::vec2 TextRenderer::get_text_dimensions_in_ndc(const std::string &text, float scale) const {
+    // Conversion factors from pixels to NDC
+    const float pixel_to_ndc_x = 2.0f / static_cast<float>(window_width_px);
+    const float pixel_to_ndc_y = 2.0f / static_cast<float>(window_height_px);
+
+    // Variables to track the total width and maximum height in pixels
+    float total_width_px = 0.0f;
+    float max_height_px = 0.0f;
+
+    // Iterate through each character in the text
+    for (const char &c : text) {
+        const CharacterDrawingData &ch = gl_char_to_drawing_data.at(c);
+
+        // Accumulate the total width (advance in 1/64 pixels, bit-shift to convert to actual pixels)
+        total_width_px += (ch.Advance >> 6) * scale;
+
+        // Track the maximum character height (adjust by scale factor)
+        float character_height_px = ch.Size.y * scale;
+        if (character_height_px > max_height_px) {
+            max_height_px = character_height_px;
+        }
+    }
+
+    // Convert the total width and maximum height from pixels to NDC
+    float total_width_ndc = total_width_px * pixel_to_ndc_x;
+    float max_height_ndc = max_height_px * pixel_to_ndc_y;
+
+    // Return the dimensions as a glm::vec2 (width in x, height in y)
+    return glm::vec2(total_width_ndc, max_height_ndc);
+}
+
+void TextRenderer::render_text(const std::string &text, glm::vec2 ndc_coord, float scale, const glm::vec3 &color) {
     // allow text to appear on top of everything
     glDisable(GL_DEPTH_TEST);
+
     // Activate corresponding render state
     shader_cache.use_shader_program(ShaderType::TEXT);
     shader_cache.set_uniform(ShaderType::TEXT, ShaderUniformVariable::RGB_COLOR, color);
+
     glm::mat4 orthographic_camera_screen_coordinates =
         glm::ortho(0.0f, static_cast<float>(window_width_px), 0.0f, static_cast<float>(window_height_px));
+    orthographic_camera_screen_coordinates = glm::mat4(1.0f);
     shader_cache.set_uniform(ShaderType::TEXT, ShaderUniformVariable::CAMERA_TO_CLIP,
                              orthographic_camera_screen_coordinates);
+
+    // Compute the pixel-to-NDC conversion factors
+    const float pixel_to_ndc_x = 2.0f / static_cast<float>(window_width_px);
+    const float pixel_to_ndc_y = 2.0f / static_cast<float>(window_height_px);
 
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(vertex_attribute_object);
@@ -203,31 +241,40 @@ void TextRenderer::render_text(const std::string &text, float x, float y, float 
     vertices.reserve(num_vertices_per_quad);
     texture_coordinates.reserve(num_vertices_per_quad);
 
+    glm::vec2 text_dimensions_ndc = get_text_dimensions_in_ndc(text, scale);
+    float total_width_ndc = text_dimensions_ndc.x;
+    float max_height_ndc = text_dimensions_ndc.y;
+
+    // Adjust starting position to horizontally and vertically center the text in NDC
+    float start_x = ndc_coord.x - total_width_ndc / 2.0f;
+    // using subtraction here because we are in NDC now, no longer need to use +
+    float start_y = ndc_coord.y - max_height_ndc / 2.0f;
+
     // Iterate through all characters
     for (const char &c : text) {
-        const CharacterDrawingData &ch = gl_char_to_drawing_data[c];
+        const CharacterDrawingData &ch = gl_char_to_drawing_data.at(c);
 
-        const float xpos = x + ch.Bearing.x * scale;
+        // Convert character size and bearing to NDC
+        const float xpos_ndc = start_x + (ch.Bearing.x * scale) * pixel_to_ndc_x;
 
-        // see the huge comment for the definition of what underhang is
-        const float scaled_underhang = (ch.Size.y - ch.Bearing.y) * scale;
-        const float ypos = y - scaled_underhang;
+        const float scaled_underhang_px = (ch.Size.y - ch.Bearing.y) * scale;
+        const float ypos_ndc = start_y - (scaled_underhang_px * pixel_to_ndc_y);
 
-        const float w = ch.Size.x * scale;
-        const float h = ch.Size.y * scale;
+        const float w_ndc = (ch.Size.x * scale) * pixel_to_ndc_x;
+        const float h_ndc = (ch.Size.y * scale) * pixel_to_ndc_y;
 
         // Clear vectors to reuse allocated memory
         vertices.clear();
         texture_coordinates.clear();
 
-        // Add vertices for each character
-        vertices.push_back(glm::vec2(xpos, ypos + h));
-        vertices.push_back(glm::vec2(xpos, ypos));
-        vertices.push_back(glm::vec2(xpos + w, ypos));
+        // Add vertices in NDC space (directly in the -1 to 1 range)
+        vertices.push_back(glm::vec2(xpos_ndc, ypos_ndc + h_ndc));
+        vertices.push_back(glm::vec2(xpos_ndc, ypos_ndc));
+        vertices.push_back(glm::vec2(xpos_ndc + w_ndc, ypos_ndc));
 
-        vertices.push_back(glm::vec2(xpos, ypos + h));
-        vertices.push_back(glm::vec2(xpos + w, ypos));
-        vertices.push_back(glm::vec2(xpos + w, ypos + h));
+        vertices.push_back(glm::vec2(xpos_ndc, ypos_ndc + h_ndc));
+        vertices.push_back(glm::vec2(xpos_ndc + w_ndc, ypos_ndc));
+        vertices.push_back(glm::vec2(xpos_ndc + w_ndc, ypos_ndc + h_ndc));
 
         // Add texture coordinates for each character
         texture_coordinates.push_back(glm::vec2(0.0f, 0.0f));
@@ -254,10 +301,10 @@ void TextRenderer::render_text(const std::string &text, float x, float y, float 
         // Render quad
         glDrawArrays(GL_TRIANGLES, 0, num_vertices_per_quad);
 
-        // Advance cursors for next glyph (note that advance is number of 1/64 pixels)
-        x += (ch.Advance >> 6) * scale; // Bitshift by 6 to get value in pixels (2^6 = 64, divide amount of 1/64th
-                                        // pixels by 64 to get amount of pixels)
+        // Advance cursor in NDC space
+        start_x += (ch.Advance >> 6) * scale * pixel_to_ndc_x; // Bitshift by 6 to get value in pixels, convert to NDC
     }
+
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
     shader_cache.stop_using_shader_program();
