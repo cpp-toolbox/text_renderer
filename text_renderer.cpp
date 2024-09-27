@@ -182,6 +182,8 @@ GLCharToDrawingData TextRenderer::generate_font_data(const std::string &font_pat
 }
 
 void TextRenderer::render_text(const std::string &text, float x, float y, float scale, const glm::vec3 &color) {
+    // allow text to appear on top of everything
+    glDisable(GL_DEPTH_TEST);
     // Activate corresponding render state
     shader_cache.use_shader_program(ShaderType::TEXT);
     shader_cache.set_uniform(ShaderType::TEXT, ShaderUniformVariable::RGB_COLOR, color);
@@ -259,4 +261,5 @@ void TextRenderer::render_text(const std::string &text, float x, float y, float 
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
     shader_cache.stop_using_shader_program();
+    glEnable(GL_DEPTH_TEST);
 }
